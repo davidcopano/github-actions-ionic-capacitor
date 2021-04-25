@@ -1,7 +1,7 @@
 # This action will be executed when a tag is created and uploaded.
 # More information: https://github.com/davidcopano/github-actions-docs
 
-name: Generar APK Android y publicar release en Github
+name: Generate Android APK and publish release on Github
 
 on:
   push:
@@ -10,48 +10,48 @@ on:
 
 jobs:
   prepare_tools:
-    name: Preparar herramientas y generar el APK
+    name: Prepare tools to generate the APK
     runs-on: ubuntu-latest
     steps:
-      - name: Obtener código del repositorio
+      - name: Get code from the current repository
         uses: actions/checkout@v2
 
-      - name: Instalar Java
+      - name: Install Java
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
 
-      - name: Instalar SDK de Android
+      - name: Install Android SDK
         uses: android-actions/setup-android@v2
 
-      - name: Instalar Node.js
+      - name: Install Node.js
         uses: actions/setup-node@v1
 
-      - name: Instalar Ionic
+      - name: Install Ionic
         run: npm install -g @ionic/cli
 
-      - name: Instalar dependencias de la aplicación
+      - name: Install app dependencies
         run: npm install
 
-      - name: Convertir finales de línea de Windows a Linux del archivo gradlew
+      - name: Convert Windows line endings to Linux from the gradlew file
         run: sudo apt update && sudo apt install dos2unix && cd android && dos2unix ./gradlew && cd ..
 
-      - name: Hacer comando ./gradlew ejecutable
+      - name: Make ./gradlew command executable
         run: cd android && chmod +x ./gradlew && cd ..
 
-      - name: Generar assets de Ionic
+      - name: Build Ionic assets
         run: ionic build --prod
 
-      - name: Copiar assets generados de Ionic a plataforma Android de Capacitor
+      - name: Copy generated assets from Ionic to Capacitor Android platform
         run: npx cap copy android && npx cap update android
 
-      - name: Generar APK
+      - name: Generate APK
         run: cd android && ./gradlew assembleRelease && cd ..
 
       # IMPORTANT: To sign the APK, you must add these secrets in the Settings -> Secrets section of the Github repo.
       # More info: https://github.com/r0adkll/sign-android-release
 
-      - name: Firmar APK
+      - name: Sign APK
         id: sign_app
         uses: r0adkll/sign-android-release@v1
         with:
@@ -63,16 +63,16 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "29.0.2"
 
-      - name: Renombrar APK firmada
+      - name: Rename signed APK
         run: mv android/app/build/outputs/apk/release/app-release-unsigned-signed.apk android/app/build/outputs/apk/release/app-release-signed.apk
 
-      - name: Subir APK generada y firmada como artefacto a Github
+      - name: Upload generated and signed APK as artifact to Github
         uses: actions/upload-artifact@v2
         with:
           name: app-release
           path: android/app/build/outputs/apk/release/app-release-signed.apk
 
-      - name: Generar release a Github
+      - name: Generate release to Github
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
