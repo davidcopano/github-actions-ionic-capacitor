@@ -1,0 +1,81 @@
+# This action will be executed when a tag is created and uploaded.
+# More information: https://github.com/davidcopano/github-actions-docs
+
+name: Generar APK Android y publicar release en Github
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  prepare_tools:
+    name: Preparar herramientas y generar el APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v2
+
+      - name: Instalar Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Instalar SDK de Android
+        uses: android-actions/setup-android@v2
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v1
+
+      - name: Instalar Ionic
+        run: npm install -g @ionic/cli
+
+      - name: Instalar dependencias de la aplicación
+        run: npm install
+
+      - name: Convertir finales de línea de Windows a Linux del archivo gradlew
+        run: sudo apt update && sudo apt install dos2unix && cd android && dos2unix ./gradlew && cd ..
+
+      - name: Hacer comando ./gradlew ejecutable
+        run: cd android && chmod +x ./gradlew && cd ..
+
+      - name: Generar assets de Ionic
+        run: ionic build --prod
+
+      - name: Copiar assets generados de Ionic a plataforma Android de Capacitor
+        run: npx cap copy android && npx cap update android
+
+      - name: Generar APK
+        run: cd android && ./gradlew assembleRelease && cd ..
+
+      # IMPORTANT: To sign the APK, you must add these secrets in the Settings -> Secrets section of the Github repo.
+      # More info: https://github.com/r0adkll/sign-android-release
+
+      - name: Firmar APK
+        id: sign_app
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "29.0.2"
+
+      - name: Renombrar APK firmada
+        run: mv android/app/build/outputs/apk/release/app-release-unsigned-signed.apk android/app/build/outputs/apk/release/app-release-signed.apk
+
+      - name: Subir APK generada y firmada como artefacto a Github
+        uses: actions/upload-artifact@v2
+        with:
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release-signed.apk
+
+      - name: Generar release a Github
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: android/app/build/outputs/apk/release/app-release-signed.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

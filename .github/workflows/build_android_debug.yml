@@ -1,0 +1,49 @@
+name: Generar APK de desarrollo Android
+
+on: [push, pull_request]
+
+jobs:
+  prepare_tools:
+    name: Preparar herramientas y generar el APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código del repositorio
+        uses: actions/checkout@v2
+
+      - name: Instalar Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Instalar SDK de Android
+        uses: android-actions/setup-android@v2
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v1
+
+      - name: Instalar Ionic
+        run: npm install -g @ionic/cli
+
+      - name: Instalar dependencias de la aplicación
+        run: npm install
+
+      - name: Convertir finales de línea de Windows a Linux del archivo gradlew
+        run: sudo apt update && sudo apt install dos2unix && cd android && dos2unix ./gradlew && cd ..
+
+      - name: Hacer comando ./gradlew ejecutable
+        run: cd android && chmod +x ./gradlew && cd ..
+
+      - name: Generar assets de Ionic
+        run: ionic build --prod
+
+      - name: Copiar assets generados de Ionic a plataforma Android de Capacitor
+        run: npx cap copy android && npx cap update android
+
+      - name: Generar APK
+        run: cd android && ./gradlew assembleDebug && cd ..
+
+      - name: Subir APK generada a Github
+        uses: actions/upload-artifact@v1
+        with:
+          name: app-dev
+          path: android/app/build/outputs/apk/debug/app-debug.apk
