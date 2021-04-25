@@ -1,48 +1,48 @@
-name: Generar APK de desarrollo Android
+name: Generate Android Development APK
 
 on: [push, pull_request]
 
 jobs:
   prepare_tools:
-    name: Preparar herramientas y generar el APK
+    name: Prepare tools to generate the APK
     runs-on: ubuntu-latest
     steps:
-      - name: Obtener código del repositorio
+      - name: Get code from the current repository
         uses: actions/checkout@v2
 
-      - name: Instalar Java
+      - name: Install Java
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
 
-      - name: Instalar SDK de Android
+      - name: Install Android SDK
         uses: android-actions/setup-android@v2
 
-      - name: Instalar Node.js
+      - name: Install Node.js
         uses: actions/setup-node@v1
 
-      - name: Instalar Ionic
+      - name: Install Ionic
         run: npm install -g @ionic/cli
 
-      - name: Instalar dependencias de la aplicación
+      - name: Install app dependencies
         run: npm install
 
-      - name: Convertir finales de línea de Windows a Linux del archivo gradlew
+      - name: Convert Windows line endings to Linux from the gradlew file
         run: sudo apt update && sudo apt install dos2unix && cd android && dos2unix ./gradlew && cd ..
 
-      - name: Hacer comando ./gradlew ejecutable
+      - name: Make ./gradlew command executable
         run: cd android && chmod +x ./gradlew && cd ..
 
-      - name: Generar assets de Ionic
+      - name: Build Ionic assets
         run: ionic build --prod
 
-      - name: Copiar assets generados de Ionic a plataforma Android de Capacitor
+      - name: Copy generated assets from Ionic to Capacitor Android platform
         run: npx cap copy android && npx cap update android
 
-      - name: Generar APK
+      - name: Generate APK
         run: cd android && ./gradlew assembleDebug && cd ..
 
-      - name: Subir APK generada a Github
+      - name: Upload generated APK to Github
         uses: actions/upload-artifact@v1
         with:
           name: app-dev
