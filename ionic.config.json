@@ -1,0 +1,7 @@
+{
+  "name": "github-actions-ionic-capacitor",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
